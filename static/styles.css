@@ -1,37 +1,37 @@
-button {
-    padding: 8px 12px;
-    background-color: #273c75;
-    color: white;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-}
-button:hover {
-    background-color: #fdfeff;
-}
-
 body {
     font-family: Arial, sans-serif;
-    padding: 2rem;
     background-color: #f9f9f9;
 }
-h1 {
-    text-align: center;
-    color: #333;
+
+.diff-positive {
+    background-color: red !important;
+    color: white !important;
+    font-weight: bold;
 }
-.form-container {
-    text-align: center;
-    margin-bottom: 2rem;
+
+.diff-negative {
+    background-color: green !important;
+    color: white !important;
+    font-weight: bold;
 }
-.dataTables_wrapper {
-    width: 60%;
+
+.align-left {
+    text-align: left !important;
+}
+
+#accountChartContainer {
+    width: 80%;
     margin: auto;
 }
-table.dataTable thead th {
-    background-color: #007BFF;
-    color: white;
+
+.mt-5 {
+    margin-top: 3rem !important;
 }
-.grand-total-row {
-    font-weight: bold;
-    background-color: #e9ecef;
+
+.text-center {
+    text-align: center !important;
+}
+
+.justify-content-center {
+    justify-content: center !important;
 }

@@ -4,23 +4,7 @@
     <meta charset="UTF-8">
     <title>AWS Cost Report</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
-    <style>
-        .diff-positive {
-        background-color: red !important;
-        color: white !important;
-        font-weight: bold;
-        }
-
-         .diff-negative {
-        background-color: green !important;
-        color: white !important;
-        font-weight: bold;
-         }
-        
-         .align-left {
-            text-align: left !important;
-        }
-    </style>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
 </head>
 <body class="bg-light">
 
@@ -106,45 +90,7 @@
     {% endif %}
 </div>
 
-<script>
-  function compareMonths() {
-    const current = document.getElementById("currentMonth").value;
-    const compare = document.getElementById("compareMonth").value;
 
-    fetch("/compare", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ current, compare })
-    })
-    .then(res => res.json())
-    .then(data => {
-      const tbody = document.getElementById("comparisonTableBody");
-      tbody.innerHTML = "";
-
-      data.forEach(row => {
-        const diff = parseFloat(row.Difference || 0);
-        const pct = parseFloat(row.Percentage || 0);
-
-        const diffClass = diff > 0 ? "diff-positive" : "diff-negative";
-        const pctClass = pct > 0 ? "diff-positive" : "diff-negative";
-
-        const tr = document.createElement("tr");
-        tr.innerHTML = `
-          <td>${row.Account}</td>
-          <td class="${diffClass}">${diff.toFixed(2)}</td>
-          <td class="${pctClass}">${pct.toFixed(2)}%</td>
-        `;
-        tbody.appendChild(tr);
-      });
-
-      document.getElementById("comparisonResults").style.display = "block";
-    })
-    .catch(error => {
-      alert("Error comparing months. Please check the console for details.");
-      console.error(error);
-    });
-  }
-</script>
 {% if graphJSON %}
 <div class="mt-5 d-flex justify-content-center">
     <div style="width: 80%;">
@@ -153,13 +99,9 @@
     </div>
 </div>
 
-<!-- Plotly -->
-<script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
-<script>
-    const stackedBar = {{ graphJSON | safe }};
-    Plotly.newPlot("stackedBarChart", stackedBar.data, stackedBar.layout);
-</script>
-{% endif %}
+{% endif %} <!-- Cierre para graphJSON -->
+
+
 
 {% if accounts %}
 <div class="mt-5">
@@ -176,34 +118,15 @@
     </div>
     <div class="mt-4" id="accountChartContainer" style="width: 80%; margin: auto;"></div>
 </div>
+{% endif %} 
+<!-- Plotly -->
+<script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
 
+<!-- Script JS personalizado -->
 <script>
-document.getElementById("accountSelector").addEventListener("change", function() {
-    const selected = this.value;
-
-    fetch("/account_graph", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ account: selected })
-    })
-    .then(res => res.json())
-    .then(data => {
-        if (!data || !data.data) {
-            console.warn("No data for selected account");
-            return;
-        }
-
-        Plotly.newPlot("accountChartContainer", data.data, data.layout);
-    })
-    .catch(err => {
-        console.error("Error fetching account data:", err);
-    });
-});
+    const stackedBar = {{ graphJSON | safe }};
 </script>
-{% endif %}
-
-
-
+<script src="{{ url_for('static', filename='main.js') }}"></script>
 
 </body>
 </html>
