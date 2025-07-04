@@ -1,1 +1,249 @@
-Ehdhdh
+from flask import Flask, render_template, request, jsonify
+import pandas as pd
+import plotly.graph_objs as go
+import plotly
+import json
+import numpy as np
+
+app = Flask(__name__)
+original_df = None  # global temporal para mantener los datos cargados (solo en memoria)
+
+@app.route("/", methods=["GET", "POST"])
+@app.route("/", methods=["GET", "POST"])
+def index():
+    global original_df
+    table_data = None
+    months = []
+    periodo = None  # ✅ Aseguramos que siempre esté definida
+    graphJSON = None
+    accounts_list = []
+
+    if request.method == "POST":
+        file = request.files.get("file")
+        if file:
+            df = pd.read_csv(file)
+            df.columns = df.columns.str.strip()
+
+            for col in ['Usage Amount', 'Tax', 'Edp Discount']:
+                df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
+
+            df["Usage Start Date"] = df["Usage Start Date"].astype(str).str.strip()
+            df["Month"] = pd.to_datetime(df["Usage Start Date"], format="%d/%m/%Y", errors="coerce") \
+                            .dt.to_period("M").astype(str)
+
+            # Obtener rango de meses únicos
+            meses_ordenados = sorted(df["Month"].dropna().unique())
+            if meses_ordenados:
+                periodo = f"{meses_ordenados[0]} a {meses_ordenados[-1]}"
+            else:
+                periodo = "Sin fechas válidas"
+
+            original_df = df.copy()
+
+            df["Total"] = df["Usage Amount"] + df["Tax"] + df["Edp Discount"]
+            summary = df.groupby("Account", as_index=False)["Total"].sum()
+            summary.columns = ["Account", "Total Cost"]
+            summary["Total Cost"] = summary["Total Cost"].round(2)
+
+            grand_total = summary["Total Cost"].sum().round(2)
+            summary.loc[len(summary.index)] = ["Grand Total", grand_total]
+
+            table_data = summary.to_dict(orient="records")
+            months = sorted(df["Month"].unique())
+        
+        if table_data:
+            df_graph = original_df.copy()
+
+            # Calcular coste total y extraer mes
+            df_graph["Total"] = df_graph["Usage Amount"] + df_graph["Tax"] + df_graph["Edp Discount"]
+            df_graph["Month"] = pd.to_datetime(df_graph["Usage Start Date"], format="%d/%m/%Y", errors="coerce") \
+                                    .dt.to_period("M").astype(str)
+
+            # Agrupar por mes y account
+            grouped = df_graph.groupby(["Month", "Account"])["Total"].sum().reset_index()
+
+            # Orden de meses
+            months_ordered = sorted(grouped["Month"].unique())
+            accounts = grouped["Account"].unique()
+
+            # Colores por Account
+            preset_colors = [
+                 "#1f77b4",  # azul
+   
+       
+                 "#9467bd",  # morado
+        
+                
+                 "#17becf"   # turquesa
+            ]
+
+
+             # # preset_colors = [
+            # #     "#1f77b4",  # azul
+            # #     "#ff7f0e",  # naranja
+            # #     "#2ca02c",  # verde
+            # #     "#d62728",  # rojo
+            # #     "#9467bd",  # morado
+            # #     "#8c564b",  # marrón
+            # #     "#e377c2",  # rosa
+            # #     "#7f7f7f",  # gris
+            # #     "#bcbd22",  # oliva
+            # #     "#17becf"   # turquesa
+            # # ]
+
+            colors = {acc: preset_colors[i % len(preset_colors)] for i, acc in enumerate(accounts)}
+
+            data = []
+
+            # Trazas de barras por Account
+            for acc in accounts:
+                y_vals = []
+                for month in months_ordered:
+                    val = grouped[(grouped["Account"] == acc) & (grouped["Month"] == month)]["Total"].sum()
+                    y_vals.append(val)
+                data.append(go.Bar(
+                    name=acc,
+                    x=months_ordered,
+                    y=y_vals,
+                    marker=dict(color=colors.get(acc))
+                ))
+
+            # Percentiles (basado en total mensual global)
+            monthly_totals = grouped.groupby("Month")["Total"].sum().values
+            p50 = np.percentile(monthly_totals, 50)
+            p90 = np.percentile(monthly_totals, 90)
+
+            # Agregar líneas de percentil SOLO UNA VEZ
+            data.append(go.Scatter(
+                x=months_ordered,
+                y=[p50] * len(months_ordered),
+                mode='lines',
+                name='Percentil 50',
+                line=dict(color='blue', dash='dash'),
+                showlegend=True
+            ))
+
+            data.append(go.Scatter(
+                x=months_ordered,
+                y=[p90] * len(months_ordered),
+                mode='lines',
+                name='Percentil 90',
+                line=dict(color='red', dash='dash'),
+                showlegend=True
+            ))
+
+            # Layout del gráfico
+            layout = go.Layout(
+                barmode='stack',
+                title='Monthly Cost per AWS Account',
+                xaxis=dict(title='Month', type='category'),
+                yaxis=dict(title='Cost €'),
+                legend=dict(orientation="h", y=-0.3)
+            )
+
+            fig = go.Figure(data=data, layout=layout)
+            graphJSON = json.dumps(fig, cls=plotly.utils.PlotlyJSONEncoder)           
+        accounts_list = sorted(df_graph["Account"].dropna().unique().tolist())        
+        
+           
+    return render_template("index.html", table_data=table_data, months=months, periodo=periodo, graphJSON=graphJSON,accounts=accounts_list)
+
+
+
+@app.route("/compare", methods=["POST"])
+def compare():
+    global original_df
+    data = request.get_json()
+    current = data.get("current")
+    compare = data.get("compare")
+
+    if original_df is None or not current or not compare:
+        return jsonify([])
+
+    df = original_df.copy()
+    df["Total"] = df["Usage Amount"] + df["Tax"] + df["Edp Discount"]
+
+    # Agrupar por Account y mes
+    grouped = df.groupby(["Account", "Month"])["Total"].sum().reset_index()
+
+    current_df = grouped[grouped["Month"] == current].set_index("Account")["Total"]
+    compare_df = grouped[grouped["Month"] == compare].set_index("Account")["Total"]
+
+    all_accounts = current_df.index.union(compare_df.index)
+    diff_df = pd.DataFrame(index=all_accounts)
+    diff_df["Current"] = current_df
+    diff_df["Compare"] = compare_df
+    diff_df = diff_df.fillna(0)
+
+    diff_df["Difference"] = (diff_df["Current"] - diff_df["Compare"]).round(2)
+
+    # Calcular porcentaje de variación (con prevención de división por cero)
+    def calculate_percentage(curr, comp):
+        if comp == 0:
+            return 0.0
+        return round((curr - comp) / abs(comp) * 100, 2)
+
+    diff_df["Percentage"] = [
+        calculate_percentage(curr, comp)
+        for curr, comp in zip(diff_df["Current"], diff_df["Compare"])
+    ]
+
+    diff_df = diff_df.reset_index()
+
+    return jsonify(diff_df[["Account", "Difference", "Percentage"]].to_dict(orient="records"))
+
+@app.route("/account_graph", methods=["POST"])
+def account_graph():
+    global original_df
+    
+    selected = request.json.get("account")
+    if not selected or original_df is None:
+        return jsonify({})
+
+    df = original_df.copy()
+    df["Total"] = df["Usage Amount"] + df["Tax"] + df["Edp Discount"]
+    df["Month"] = pd.to_datetime(df["Usage Start Date"], format="%d/%m/%Y", errors="coerce") \
+                    .dt.to_period("M").astype(str)
+
+    df = df[df["Account"] == selected]
+
+    if df.empty:
+        return jsonify({})
+
+    # Agrupar por mes y servicio
+    grouped = df.groupby(["Month", "Service"])["Total"].sum().reset_index()
+
+    # Calcular los 10 servicios más costosos en total
+    top_services = grouped.groupby("Service")["Total"].sum().nlargest(10).index.tolist()
+
+    # Reasignar el resto como 'Others'
+    grouped["Service"] = grouped["Service"].apply(lambda s: s if s in top_services else "Others")
+
+    # Agrupar de nuevo
+    grouped = grouped.groupby(["Month", "Service"])["Total"].sum().reset_index()
+    months = sorted(grouped["Month"].unique())
+    services = grouped["Service"].unique()
+
+    # Crear trazas
+    data = []
+    for service in services:
+        y_vals = []
+        for month in months:
+            val = grouped[(grouped["Service"] == service) & (grouped["Month"] == month)]["Total"].sum()
+            y_vals.append(val)
+        data.append(go.Bar(name=service, x=months, y=y_vals))
+
+    layout = go.Layout(
+        barmode="stack",
+        title=f"Monthly Breakdown Cost per Service for {selected}",
+        xaxis=dict(title="Month", type="category"),
+        yaxis=dict(title="Cost €"),
+        legend=dict(orientation="h", y=-0.3)
+    )
+
+    fig = go.Figure(data=data, layout=layout)
+    return jsonify(fig.to_dict())
+
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=5001, debug=True)
