@@ -118,7 +118,17 @@
     </div>
     <div class="mt-4" id="accountChartContainer" style="width: 80%; margin: auto;"></div>
 </div>
-{% endif %} 
+{% endif %}
+
+<!-- Donut chart container -->
+{% if accounts %}
+<div id="donutContainer" class="mt-4" style="display: none;">
+    <h5 class="text-center">Service Cost Distribution (Latest Month)</h5>
+    <div id="donutChartContainer" style="width: 60%; margin: auto;"></div>
+</div>
+{% endif %}
+
+
 <!-- Plotly -->
 <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
 

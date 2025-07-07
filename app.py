@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify, Response
 import pandas as pd
 import plotly.graph_objs as go
 import plotly
@@ -8,7 +8,6 @@ import numpy as np
 app = Flask(__name__)
 original_df = None  # global temporal para mantener los datos cargados (solo en memoria)
 
-@app.route("/", methods=["GET", "POST"])
 @app.route("/", methods=["GET", "POST"])
 def index():
     global original_df
@@ -242,7 +241,53 @@ def account_graph():
     )
 
     fig = go.Figure(data=data, layout=layout)
-    return jsonify(fig.to_dict())
+    
+    # === Gráfico DONUT para el último mes ===
+    latest_month = df["Month"].max()
+    df_last_month = df[df["Month"] == latest_month]
+
+    # Agrupar por servicio y ordenar
+    donut_data = df_last_month.groupby("Service")["Total"].sum().reset_index()
+    donut_data = donut_data.sort_values("Total", ascending=False)
+
+
+    # Limitar a top 10 y agrupar el resto como "Others"
+    if len(donut_data) > 5:
+        top_5 = donut_data.head(5)
+        others_total = donut_data.iloc[5:]["Total"].sum()
+        others_row = pd.DataFrame([{"Service": "Others", "Total": others_total}])
+        donut_data = pd.concat([top_5, others_row], ignore_index=True)
+    # Asegurarse de que los valores están bien formateados
+    donut_data["Total"] = pd.to_numeric(donut_data["Total"], errors='coerce').fillna(0)
+
+    # Crear gráfico
+    # Crear gráfico DONUT (reemplaza esta parte)
+    donut_fig = go.Figure(data=[go.Pie(
+        labels=donut_data["Service"].tolist(),
+        values=donut_data["Total"].astype(float).tolist(),
+        hole=0.5,
+        textinfo="label+percent",
+        hovertemplate="%{label}: %{value:.2f} € (%{percent})"
+    )])
+    donut_fig.update_layout(title=f"Service Cost Distributions for {selected} ({latest_month})")
+
+
+    
+    
+    # Combinar ambos gráficos y serializar correctamente con PlotlyJSONEncoder
+    combined_graphs = {
+        #"stacked": fig.to_dict(),
+        #"donut": donut_fig.to_dict()
+        "stacked": json.loads(plotly.io.to_json(fig)),
+        "donut": json.loads(plotly.io.to_json(donut_fig))
+
+    }
+
+    return Response(
+        json.dumps(combined_graphs, cls=plotly.utils.PlotlyJSONEncoder),
+        mimetype="application/json"
+    )
+    
 
 
 if __name__ == "__main__":

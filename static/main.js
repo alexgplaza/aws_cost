@@ -49,12 +49,17 @@ document.addEventListener("DOMContentLoaded", () => {
             })
             .then(res => res.json())
             .then(data => {
-                if (!data || !data.data) {
+                if (!data || !data.stacked || !data.donut) {
                     console.warn("No data for selected account");
                     return;
                 }
 
-                Plotly.newPlot("accountChartContainer", data.data, data.layout);
+                // Graficar la de barras apiladas
+                Plotly.newPlot("accountChartContainer", data.stacked.data, data.stacked.layout);
+
+                // Graficar el donut
+                Plotly.newPlot("donutChartContainer", data.donut.data, data.donut.layout);
+                document.getElementById("donutContainer").style.display = "block";
             })
             .catch(err => {
                 console.error("Error fetching account data:", err);
