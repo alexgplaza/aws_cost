@@ -55,10 +55,10 @@ document.addEventListener("DOMContentLoaded", () => {
                 }
 
                 // Graficar la de barras apiladas
-                Plotly.newPlot("accountChartContainer", data.stacked.data, data.stacked.layout);
+                Plotly.newPlot("accountChartContainer", data.stacked.data, data.stacked.layout, {responsive: true});
 
                 // Graficar el donut
-                Plotly.newPlot("donutChartContainer", data.donut.data, data.donut.layout);
+                Plotly.newPlot("donutChartContainer", data.donut.data, data.donut.layout, {responsive: true});
                 document.getElementById("donutContainer").style.display = "block";
             })
             .catch(err => {
@@ -68,6 +68,15 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     if (typeof stackedBar !== "undefined") {
-        Plotly.newPlot("stackedBarChart", stackedBar.data, stackedBar.layout);
+        Plotly.newPlot("stackedBarChart", stackedBar.data, stackedBar.layout, {responsive: true});
     }
-});
+
+        // Resize automáticamente
+    window.addEventListener("resize", () => {
+        Plotly.Plots.resize(document.getElementById("stackedBarChart"));
+        Plotly.Plots.resize(document.getElementById("accountChartContainer"));
+        Plotly.Plots.resize(document.getElementById("donutChartContainer"));
+    });
+
+
+  });
