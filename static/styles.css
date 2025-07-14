@@ -35,3 +35,11 @@ body {
 .justify-content-center {
     justify-content: center !important;
 }
+
+#budgetSection input {
+    min-width: 100px;
+}
+
+#budgetSection .btn {
+    margin-top: 6px;
+}

@@ -4,6 +4,8 @@ import plotly.graph_objs as go
 import plotly
 import json
 import numpy as np
+from datetime import datetime
+
 
 app = Flask(__name__)
 original_df = None  # global temporal para mantener los datos cargados (solo en memoria)
@@ -288,6 +290,50 @@ def account_graph():
         mimetype="application/json"
     )
     
+from datetime import datetime
+
+@app.route("/fiscal_usage", methods=["POST"])
+def fiscal_usage():
+    global original_df
+
+    if original_df is None:
+        return jsonify({"error": "No data uploaded"}), 400
+
+    data = request.get_json()
+    budget = data.get("budget")
+
+    try:
+        budget = float(budget)
+    except (TypeError, ValueError):
+        return jsonify({"error": "Invalid budget value"}), 400
+
+    # Calcular rango fiscal: abril del año actual a marzo del siguiente
+    now = datetime.now()
+    fiscal_start = datetime(now.year, 4, 1)
+    fiscal_end = datetime(now.year + 1, 3, 31)
+
+    df = original_df.copy()
+
+    # Convertir fechas
+    df["DateParsed"] = pd.to_datetime(df["Usage Start Date"], format="%d/%m/%Y", errors="coerce")
+
+    # Filtrar por el rango fiscal
+    df_fiscal = df[(df["DateParsed"] >= fiscal_start) & (df["DateParsed"] <= fiscal_end)]
+
+    # Calcular total
+    df_fiscal["Total"] = df_fiscal["Usage Amount"] + df_fiscal["Tax"] + df_fiscal["Edp Discount"]
+    total_spent = df_fiscal["Total"].sum()
+
+    # Calcular porcentaje de uso
+    used_pct = round((total_spent / budget) * 100, 2) if budget > 0 else 0.0
+
+    return jsonify({
+        "used_pct": used_pct,
+        "total_spent": round(total_spent, 2)
+    })
+
+
+
 
 
 if __name__ == "__main__":

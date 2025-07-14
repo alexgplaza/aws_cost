@@ -80,3 +80,66 @@ document.addEventListener("DOMContentLoaded", () => {
 
 
   });
+
+
+// Mostrar/ocultar sección de presupuesto
+function toggleBudgetSection() {
+    const section = document.getElementById("budgetSection");
+    const arrow = document.getElementById("arrowToggle");
+    const visible = section.style.display === "block";
+    section.style.display = visible ? "none" : "block";
+    arrow.textContent = visible ? "▼" : "▲";
+}
+
+// Activar botón solo si hay valor
+document.addEventListener("DOMContentLoaded", () => {
+    const input = document.getElementById("fiscalBudget");
+    const button = document.getElementById("calculateBudgetBtn");
+
+    if (input && button) {
+        input.addEventListener("input", () => {
+            button.disabled = input.value.trim() === "";
+        });
+
+        button.addEventListener("click", () => {
+            const budget = parseFloat(input.value);
+            if (isNaN(budget) || budget <= 0) {
+                alert("Please enter a valid positive budget.");
+                return;
+            }
+
+            fetch("/fiscal_usage", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ budget })
+            })
+            .then(res => res.json())
+            .then(data => {
+                const spent = data.total_spent;
+                const used_pct = data.used_pct;
+
+                document.getElementById("spentAmount").textContent = `${spent.toFixed(2)} €`;
+
+                const bar = document.getElementById("budgetProgress");
+                bar.style.width = `${used_pct}%`;
+                bar.textContent = `${used_pct}%`;
+
+                if (used_pct >= 90) {
+                    bar.className = "progress-bar bg-danger";
+                } else if (used_pct >= 70) {
+                    bar.className = "progress-bar bg-warning";
+                } else {
+                    bar.className = "progress-bar bg-success";
+                }
+
+                document.getElementById("budgetResult").style.display = "block";
+            })
+            .catch(error => {
+                console.error("Error calculating fiscal usage:", error);
+                alert("Something went wrong calculating budget usage.");
+            });
+        });
+    }
+});
+
+
