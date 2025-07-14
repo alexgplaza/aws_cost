@@ -25,20 +25,20 @@
     <!-- Tabla de totales -->
     {% if table_data %}
     <div id="results" class="mt-4">
-        <h5>Total costs per AWS account</h5>
+        <h5>Total Cost €s per AWS account</h5>
         <p class="text-muted">Period: {{ periodo }}</p>
         <table class="table table-bordered table-striped">
             <thead>
                 <tr>
                     <th class="align-left">Account</th>
-                    <th class="align-left">Total Cost</th>
+                    <th class="align-left">Total Cost €</th>
                 </tr>
             </thead>
             <tbody>
                 {% for row in table_data %}
                 <tr>
                     <td class="align-left">{{ row["Account"] }}</td>
-                    <td class="align-left">{{ "%.2f"|format(row["Total Cost"]) }}</td>
+                    <td class="align-left">{{ "%.2f"|format(row["Total Cost €"]) }}</td>
                 </tr>
                 {% endfor %}
             </tbody>

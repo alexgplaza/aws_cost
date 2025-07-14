@@ -35,16 +35,16 @@ def index():
             if meses_ordenados:
                 periodo = f"{meses_ordenados[0]} a {meses_ordenados[-1]}"
             else:
-                periodo = "Sin fechas válidas"
+                periodo = "Invalid date range"
 
             original_df = df.copy()
 
             df["Total"] = df["Usage Amount"] + df["Tax"] + df["Edp Discount"]
             summary = df.groupby("Account", as_index=False)["Total"].sum()
-            summary.columns = ["Account", "Total Cost"]
-            summary["Total Cost"] = summary["Total Cost"].round(2)
+            summary.columns = ["Account", "Total Cost €"]
+            summary["Total Cost €"] = summary["Total Cost €"].round(2)
 
-            grand_total = summary["Total Cost"].sum().round(2)
+            grand_total = summary["Total Cost €"].sum().round(2)
             summary.loc[len(summary.index)] = ["Grand Total", grand_total]
 
             table_data = summary.to_dict(orient="records")
