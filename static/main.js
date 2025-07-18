@@ -65,6 +65,10 @@ document.addEventListener("DOMContentLoaded", () => {
                 console.error("Error fetching account data:", err);
             });
         });
+        if (selector.options.length === 1) {
+            selector.selectedIndex = 0;
+            selector.dispatchEvent(new Event("change"));
+        }
     }
 
     if (typeof stackedBar !== "undefined") {

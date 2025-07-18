@@ -22,16 +22,18 @@ def index():
     if request.method == "POST":
         file = request.files.get("file")
         if file:
-            df = pd.read_csv(file)
-            df.columns = df.columns.str.strip()
+            df = pd.read_csv(file, on_bad_lines='skip')
 
             for col in ['Usage Amount', 'Tax', 'Edp Discount']:
                 df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
 
             df["Usage Start Date"] = df["Usage Start Date"].astype(str).str.strip()
-            df["Month"] = pd.to_datetime(df["Usage Start Date"], format="%d/%m/%Y", errors="coerce") \
-                            .dt.to_period("M").astype(str)
+            #Cambio
+            df["Month"] = pd.to_datetime(df["Usage Start Date"], errors="coerce") \
+                .dt.to_period("M").astype(str)
 
+            
+            
             # Obtener rango de meses únicos
             meses_ordenados = sorted(df["Month"].dropna().unique())
             if meses_ordenados:
@@ -57,8 +59,7 @@ def index():
 
             # Calcular coste total y extraer mes
             df_graph["Total"] = df_graph["Usage Amount"] + df_graph["Tax"] + df_graph["Edp Discount"]
-            df_graph["Month"] = pd.to_datetime(df_graph["Usage Start Date"], format="%d/%m/%Y", errors="coerce") \
-                                    .dt.to_period("M").astype(str)
+            
 
             # Agrupar por mes y account
             grouped = df_graph.groupby(["Month", "Account"])["Total"].sum().reset_index()
@@ -139,7 +140,7 @@ def index():
                 title='Monthly Cost per AWS Account',
                 xaxis=dict(title='Month', type='category'),
                 yaxis=dict(title='Cost €'),
-                legend=dict(orientation="h", y=-0.3)
+                legend=dict(orientation="h", y=-0.8)
             )
 
             fig = go.Figure(data=data, layout=layout)
@@ -203,8 +204,8 @@ def account_graph():
 
     df = original_df.copy()
     df["Total"] = df["Usage Amount"] + df["Tax"] + df["Edp Discount"]
-    df["Month"] = pd.to_datetime(df["Usage Start Date"], format="%d/%m/%Y", errors="coerce") \
-                    .dt.to_period("M").astype(str)
+    df["Month"] = pd.to_datetime(df["Usage Start Date"], format="%Y-%m-%d", errors="coerce") \
+                .dt.to_period("M").astype(str)
 
     df = df[df["Account"] == selected]
 
@@ -315,7 +316,7 @@ def fiscal_usage():
     df = original_df.copy()
 
     # Convertir fechas
-    df["DateParsed"] = pd.to_datetime(df["Usage Start Date"], format="%d/%m/%Y", errors="coerce")
+    df["DateParsed"] = pd.to_datetime(df["Usage Start Date"], errors="coerce")
 
     # Filtrar por el rango fiscal
     df_fiscal = df[(df["DateParsed"] >= fiscal_start) & (df["DateParsed"] <= fiscal_end)]
@@ -331,9 +332,6 @@ def fiscal_usage():
         "used_pct": used_pct,
         "total_spent": round(total_spent, 2)
     })
-
-
-
 
 
 if __name__ == "__main__":
